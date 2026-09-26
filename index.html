@@ -574,7 +574,7 @@
             color: #6c757d;
         }
 
-        /* Modal Overlay for Google Account Picker & Payment Confirmation */
+        /* Modal Overlay for Google Account Picker */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -626,7 +626,7 @@
 </head>
 <body>
 
-    <!-- Header & Navigation with Dynamic Login/Register Button and Profile Button -->
+    <!-- Header & Navigation -->
     <header>
         <div class="nav-container">
             <a class="logo-area" ondblclick="triggerAdminPortal()" title="Double tap logo to access admin portal">
@@ -677,7 +677,7 @@
 
         <h2 class="section-title">Featured Listings</h2>
         <div class="property-grid" id="home-property-grid">
-            <!-- Dynamically populated property cards -->
+            <p style="grid-column: 1/-1; text-align:center; color:#6c757d; padding:30px;">Loading live property listings from Firebase...</p>
         </div>
 
         <div style="margin-top: 50px;">
@@ -697,7 +697,7 @@
                 </div>
             </div>
 
-            <!-- User Auto-Counting & Review Counting Section -->
+            <!-- Platform Statistics -->
             <div style="background: var(--white); padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 40px; text-align: center;">
                 <h3 style="margin-bottom: 20px; color: var(--dark-gray);">Platform Statistics & Community Reviews</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
@@ -706,7 +706,7 @@
                         <p style="color: #666; font-size: 0.95rem;">Active Website Users</p>
                     </div>
                     <div>
-                        <h2 id="counter-listings" style="color: var(--primary-orange); font-size: 2.2rem;">58+</h2>
+                        <h2 id="counter-listings" style="color: var(--primary-orange); font-size: 2.2rem;">0+</h2>
                         <p style="color: #666; font-size: 0.95rem;">Verified Properties</p>
                     </div>
                     <div>
@@ -741,7 +741,7 @@
             <button onclick="renderAllProperties()">Filter</button>
         </div>
         <div class="property-grid" id="all-properties-grid">
-            <!-- Dynamically populated property cards -->
+            <p style="grid-column: 1/-1; text-align:center; color:#6c757d; padding:30px;">Loading live property listings...</p>
         </div>
     </section>
 
@@ -791,7 +791,7 @@
         </div>
     </section>
 
-    <!-- 5. Login / Register View (Logo on Top, Email & Password Only for Login) -->
+    <!-- 5. Login / Register View -->
     <section id="view-login" class="view-section">
         <div class="form-container">
             <img src="latratpng.png" alt="Logo" class="form-logo" onerror="this.style.display='none'">
@@ -812,7 +812,6 @@
                     <input type="password" id="auth-password" required placeholder="Enter password">
                 </div>
 
-                <!-- Registration Business Tier & Payment Confirmation Gate -->
                 <div id="business-tier-section" style="display:none; text-align:left;">
                     <label style="font-weight:600; margin-bottom:5px; display:block;">Select Business Subscription Tier</label>
                     <div class="pricing-tiers">
@@ -908,7 +907,7 @@
                         <label>Detailed Description</label>
                         <textarea id="u-prop-desc" rows="3" required placeholder="Provide specifications, bedrooms, amenities, etc."></textarea>
                     </div>
-                    <button type="submit" class="btn-submit">Publish Property Listing</button>
+                    <button type="submit" class="btn-submit" id="user-submit-btn">Publish Property Listing</button>
                 </form>
             </div>
 
@@ -930,7 +929,7 @@
         </div>
     </section>
 
-    <!-- 7. Admin Login View (Logo on Top) -->
+    <!-- 7. Admin Login View -->
     <section id="view-admin-login" class="view-section">
         <div class="form-container">
             <img src="latratpng.png" alt="Logo" class="form-logo" onerror="this.style.display='none'">
@@ -997,12 +996,12 @@
                     <label>Detailed Description</label>
                     <textarea id="a-prop-desc" rows="3" required></textarea>
                 </div>
-                <button type="submit" class="btn-submit">Publish Listing as Admin</button>
+                <button type="submit" class="btn-submit" id="admin-submit-btn">Publish Listing as Admin</button>
             </form>
         </div>
     </section>
 
-    <!-- Google Account Picker Device Modal -->
+    <!-- Google Account Picker Modal -->
     <div id="google-picker-modal" class="modal-overlay">
         <div class="modal-box">
             <h3 style="margin-bottom: 15px;">Choose an account</h3>
@@ -1054,46 +1053,216 @@
         </div>
     </footer>
 
-    <!-- JavaScript Application Logic -->
-    <script>
-        let defaultProperties = [
-            {
-                id: 1,
-                name: "Luxury 4-Bedroom Family Home",
-                type: "House",
-                district: "Wakiso",
-                price: 350000000,
-                image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='250'><rect width='400' height='250' fill='%23e9ecef'/><text x='120' y='130' fill='%236c757d' font-size='18'>House Listing</text></svg>",
-                whatsapp: "+256771895378",
-                description: "Spacious house located in a serene neighborhood in Kakiri-Wakiso with modern finishing.",
-                ownerEmail: "latratproperties@gmail.com",
-                status: "Available"
-            }
-        ];
+    <!-- Firebase Real-time Synchronization Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-        let properties = JSON.parse(localStorage.getItem('latrat_properties')) || defaultProperties;
-        let currentUser = JSON.parse(localStorage.getItem('latrat_current_user')) || null;
+        // 1. YOUR FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6Roz5usQYwFpy4GH8bDv90p8DdjqYqz8",
+            authDomain: "latratproperties.firebaseapp.com",
+            projectId: "latratproperties",
+            storageBucket: "latratproperties.firebasestorage.app",
+            messagingSenderId: "527196103731",
+            appId: "1:527196103731:web:bdd7aac970ddacb7aa6f46",
+            measurementId: "G-47BGGVN8XC"
+        };
+
+        // Initialize Firebase Services
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // Global properties array synced with Firestore
+        window.firebaseProperties = [];
+
+        // 2. REAL-TIME FIRESTORE LISTENER
+        const propertiesRef = collection(db, "properties");
+        const q = query(propertiesRef, orderBy("createdAt", "desc"));
+
+        onSnapshot(q, (snapshot) => {
+            window.firebaseProperties = [];
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                
+                // Flexible field mapping between App and Web
+                const imageUrl = (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls[0] : (data.image || "https://via.placeholder.com/400x250?text=No+Image+Available");
+                
+                window.firebaseProperties.push({
+                    firestoreId: docSnap.id,
+                    id: data.id || docSnap.id,
+                    name: data.title || data.name || "Untitled Property",
+                    type: data.category || data.type || "House",
+                    district: data.location || data.district || "Kampala",
+                    price: data.price || 0,
+                    image: imageUrl,
+                    whatsapp: data.whatsapp || "+256771895378",
+                    description: data.description || "",
+                    ownerEmail: data.ownerEmail || "latratproperties@gmail.com",
+                    status: data.status || "Available"
+                });
+            });
+
+            // Update UI with real-time Firestore data
+            window.properties = window.firebaseProperties;
+            window.renderHomeProperties();
+            window.renderAllProperties();
+            if (window.currentUser) {
+                window.updateUserDashboardDisplay();
+            }
+            const counterElem = document.getElementById('counter-listings');
+            if (counterElem) {
+                counterElem.innerText = window.properties.length + "+";
+            }
+        }, (error) => {
+            console.error("Firestore Listen Error:", error);
+        });
+
+        // 3. ADD PROPERTY TO FIRESTORE (USER FORM)
+        window.handleUserAddProperty = async function(event) {
+            event.preventDefault();
+            if (!window.currentUser) return;
+
+            const submitBtn = document.getElementById('user-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Uploading Image & Publishing...";
+
+            try {
+                const name = document.getElementById('u-prop-name').value;
+                const type = document.getElementById('u-prop-type').value;
+                const district = document.getElementById('u-prop-district').value;
+                const price = document.getElementById('u-prop-price').value;
+                const whatsapp = document.getElementById('u-prop-whatsapp').value;
+                const desc = document.getElementById('u-prop-desc').value;
+                const imageFile = document.getElementById('u-prop-image').files[0];
+
+                let imageUrl = "https://via.placeholder.com/400x250?text=No+Image";
+
+                if (imageFile) {
+                    const storageRef = ref(storage, `properties/${Date.now()}_${imageFile.name}`);
+                    await uploadBytes(storageRef, imageFile);
+                    imageUrl = await getDownloadURL(storageRef);
+                }
+
+                // Push to Firestore so App and Web both sync instantly
+                await addDoc(collection(db, "properties"), {
+                    title: name,
+                    category: type,
+                    location: district,
+                    price: Number(price),
+                    imageUrls: [imageUrl],
+                    whatsapp: whatsapp,
+                    description: desc,
+                    ownerEmail: window.currentUser.email,
+                    status: "Available",
+                    createdAt: serverTimestamp()
+                });
+
+                alert("Property published successfully!");
+                document.getElementById('user-property-form').reset();
+            } catch (err) {
+                console.error("Upload Error:", err);
+                alert("Error publishing property. Please try again.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Publish Property Listing";
+            }
+        };
+
+        // 4. ADD PROPERTY TO FIRESTORE (ADMIN FORM)
+        window.handleAdminAddProperty = async function(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('admin-submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Uploading Image & Publishing...";
+
+            try {
+                const name = document.getElementById('a-prop-name').value;
+                const type = document.getElementById('a-prop-type').value;
+                const district = document.getElementById('a-prop-district').value;
+                const price = document.getElementById('a-prop-price').value;
+                const whatsapp = document.getElementById('a-prop-whatsapp').value;
+                const desc = document.getElementById('a-prop-desc').value;
+                const imageFile = document.getElementById('a-prop-image').files[0];
+
+                let imageUrl = "https://via.placeholder.com/400x250?text=No+Image";
+
+                if (imageFile) {
+                    const storageRef = ref(storage, `properties/${Date.now()}_${imageFile.name}`);
+                    await uploadBytes(storageRef, imageFile);
+                    imageUrl = await getDownloadURL(storageRef);
+                }
+
+                await addDoc(collection(db, "properties"), {
+                    title: name,
+                    category: type,
+                    location: district,
+                    price: Number(price),
+                    imageUrls: [imageUrl],
+                    whatsapp: whatsapp,
+                    description: desc,
+                    ownerEmail: "latratproperties@gmail.com",
+                    status: "Available",
+                    createdAt: serverTimestamp()
+                });
+
+                alert("Official Admin listing added successfully!");
+                document.getElementById('admin-property-form').reset();
+                window.switchView('home');
+            } catch (err) {
+                console.error("Admin Upload Error:", err);
+                alert("Error publishing listing.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Publish Listing as Admin";
+            }
+        };
+
+        // 5. TOGGLE STATUS IN FIRESTORE
+        window.togglePropertyStatus = async function(propId, firestoreId) {
+            const targetId = firestoreId || propId;
+            const prop = window.properties.find(p => p.firestoreId === targetId || p.id === targetId);
+            if (prop && prop.firestoreId) {
+                const newStatus = prop.status === 'Taken' ? 'Available' : 'Taken';
+                const docRef = doc(db, "properties", prop.firestoreId);
+                await updateDoc(docRef, { status: newStatus });
+            }
+        };
+
+        // 6. DELETE LISTING FROM FIRESTORE
+        window.deleteListing = async function(propId, firestoreId) {
+            const targetId = firestoreId || propId;
+            const prop = window.properties.find(p => p.firestoreId === targetId || p.id === targetId);
+            if (prop && prop.firestoreId) {
+                if (confirm("Are you sure you want to delete this listing?")) {
+                    const docRef = doc(db, "properties", prop.firestoreId);
+                    await deleteDoc(docRef);
+                }
+            }
+        };
+    </script>
+
+    <!-- UI Helper Functions -->
+    <script>
+        window.properties = [];
+        window.currentUser = JSON.parse(localStorage.getItem('latrat_current_user')) || null;
         let isRegisterMode = false;
         let selectedTierNumber = 1;
         let selectedPaymentProvider = 'MTN';
 
-        function syncToLocalStorage() {
-            localStorage.setItem('latrat_properties', JSON.stringify(properties));
-            localStorage.setItem('latrat_current_user', JSON.stringify(currentUser));
-            updateNavLoginButtonState();
-        }
-
-        // Update Nav Login / Register visibility
         function updateNavLoginButtonState() {
             const loginLi = document.getElementById('nav-login-li');
-            if (currentUser) {
+            if (window.currentUser) {
                 loginLi.style.display = 'none';
             } else {
                 loginLi.style.display = 'block';
             }
         }
 
-        function switchView(viewId) {
+        window.switchView = function(viewId) {
             document.querySelectorAll('.view-section').forEach(section => {
                 section.classList.remove('active');
             });
@@ -1117,13 +1286,13 @@
                 document.getElementById('nav-contact').classList.add('active');
             } else if (viewId === 'login') {
                 document.getElementById('view-login').classList.add('active');
-                if(!currentUser) document.getElementById('nav-login').classList.add('active');
+                if(!window.currentUser) document.getElementById('nav-login').classList.add('active');
             } else if (viewId === 'admin-login') {
                 document.getElementById('view-admin-login').classList.add('active');
             } else if (viewId === 'admin-dashboard') {
                 document.getElementById('view-admin-dashboard').classList.add('active');
             } else if (viewId === 'user-dashboard') {
-                if (!currentUser) {
+                if (!window.currentUser) {
                     switchView('login');
                     return;
                 }
@@ -1131,19 +1300,19 @@
                 updateUserDashboardDisplay();
             }
             window.scrollTo(0, 0);
-        }
+        };
 
-        function triggerAdminPortal() {
+        window.triggerAdminPortal = function() {
             switchView('admin-login');
-        }
+        };
 
-        function handleProfileNavClick() {
-            if (currentUser) {
+        window.handleProfileNavClick = function() {
+            if (window.currentUser) {
                 switchView('user-dashboard');
             } else {
                 switchView('login');
             }
-        }
+        };
 
         function formatUGX(amount) {
             return Number(amount).toLocaleString() + " UGX";
@@ -1185,45 +1354,44 @@
             });
         }
 
-        function renderHomeProperties() {
-            renderPropertyCards('home-property-grid', properties.slice(0, 6));
-        }
+        window.renderHomeProperties = function() {
+            renderPropertyCards('home-property-grid', window.properties.slice(0, 6));
+        };
 
-        function liveSearchListings() {
+        window.liveSearchListings = function() {
             const keyword = document.getElementById('filter-keyword').value.toLowerCase();
             const type = document.getElementById('filter-type').value;
             const district = document.getElementById('filter-district').value;
 
-            let filtered = properties.filter(p => {
+            let filtered = window.properties.filter(p => {
                 const matchKeyword = p.name.toLowerCase().includes(keyword) || p.description.toLowerCase().includes(keyword);
                 const matchType = type === "" || p.type === type;
                 const matchDistrict = district === "" || p.district === district;
                 return matchKeyword && matchType && matchDistrict;
             });
             renderPropertyCards('home-property-grid', filtered);
-        }
+        };
 
-        function renderAllProperties() {
+        window.renderAllProperties = function() {
             const keyword = document.getElementById('prop-keyword').value.toLowerCase();
             const type = document.getElementById('prop-type').value;
             const district = document.getElementById('prop-district').value;
 
-            let filtered = properties.filter(p => {
+            let filtered = window.properties.filter(p => {
                 const matchKeyword = p.name.toLowerCase().includes(keyword) || p.description.toLowerCase().includes(keyword);
                 const matchType = type === "" || p.type === type;
                 const matchDistrict = district === "" || p.district === district;
                 return matchKeyword && matchType && matchDistrict;
             });
             renderPropertyCards('all-properties-grid', filtered);
-        }
+        };
 
-        function applyFilters() {
+        window.applyFilters = function() {
             switchView('properties');
             renderAllProperties();
-        }
+        };
 
-        // Toggle Auth Mode (Login vs Register)
-        function toggleAuthMode() {
+        window.toggleAuthMode = function() {
             isRegisterMode = !isRegisterMode;
             const title = document.getElementById('auth-form-title');
             const nameGroup = document.getElementById('group-name');
@@ -1247,22 +1415,21 @@
                 toggleText.innerText = "Need an account?";
                 toggleLink.innerText = "Register here";
             }
-        }
+        };
 
-        function selectTier(tierNum, element) {
+        window.selectTier = function(tierNum, element) {
             selectedTierNumber = tierNum;
             document.querySelectorAll('.tier-card').forEach(card => card.classList.remove('selected'));
             element.classList.add('selected');
-        }
+        };
 
-        function selectPaymentMethod(provider, element) {
+        window.selectPaymentMethod = function(provider, element) {
             selectedPaymentProvider = provider;
             document.querySelectorAll('.pay-method-card').forEach(card => card.classList.remove('selected'));
             element.classList.add('selected');
-        }
+        };
 
-        // Strict Payment Confirmation Gate on Registration
-        function handleAuthSubmit(event) {
+        window.handleAuthSubmit = function(event) {
             event.preventDefault();
             const email = document.getElementById('auth-email').value;
             const name = document.getElementById('auth-name').value || "Client User";
@@ -1274,14 +1441,13 @@
                     return;
                 }
 
-                // Simulate rigorous payment confirmation gate
                 const confirmed = confirm(`Initiating Mobile Money payment via ${selectedPaymentProvider} for ${selectedTierNumber === 1 ? '30,000 UGX' : '50,000 UGX'}.\n\nClick OK once you approve the PIN prompt on your phone.`);
                 if (!confirmed) {
                     alert("Account creation cancelled because payment was not confirmed.");
                     return;
                 }
 
-                currentUser = {
+                window.currentUser = {
                     name: name,
                     email: email,
                     type: 'business',
@@ -1292,62 +1458,63 @@
                 const successBox = document.getElementById('auth-success');
                 successBox.style.display = 'block';
                 successBox.innerText = "Payment confirmed successfully! Account created.";
-                syncToLocalStorage();
+                localStorage.setItem('latrat_current_user', JSON.stringify(window.currentUser));
+                updateNavLoginButtonState();
 
                 setTimeout(() => {
                     successBox.style.display = 'none';
                     switchView('user-dashboard');
                 }, 1200);
             } else {
-                // Login action (Email and Password only)
-                currentUser = {
+                window.currentUser = {
                     name: email.split('@')[0],
                     email: email,
                     type: 'business',
                     limit: 35,
                     whatsapp: "+256 771895378"
                 };
-                syncToLocalStorage();
+                localStorage.setItem('latrat_current_user', JSON.stringify(window.currentUser));
+                updateNavLoginButtonState();
                 switchView('user-dashboard');
             }
-        }
+        };
 
-        // Google Account Device Picker Simulation
-        function openGoogleAccountPicker() {
+        window.openGoogleAccountPicker = function() {
             document.getElementById('google-picker-modal').style.display = 'flex';
-        }
+        };
 
-        function closeGooglePicker() {
+        window.closeGooglePicker = function() {
             document.getElementById('google-picker-modal').style.display = 'none';
-        }
+        };
 
-        function selectGoogleAccount(accountName, accountEmail) {
+        window.selectGoogleAccount = function(accountName, accountEmail) {
             closeGooglePicker();
-            currentUser = {
+            window.currentUser = {
                 name: accountName,
                 email: accountEmail,
                 type: 'business',
                 limit: 35,
                 whatsapp: "+256 771895378"
             };
-            syncToLocalStorage();
+            localStorage.setItem('latrat_current_user', JSON.stringify(window.currentUser));
+            updateNavLoginButtonState();
             switchView('user-dashboard');
-        }
+        };
 
-        function logoutUser() {
-            currentUser = null;
+        window.logoutUser = function() {
+            window.currentUser = null;
             localStorage.removeItem('latrat_current_user');
             updateNavLoginButtonState();
             switchView('home');
-        }
+        };
 
-        function updateUserDashboardDisplay() {
-            if (!currentUser) return;
+        window.updateUserDashboardDisplay = function() {
+            if (!window.currentUser) return;
             document.getElementById('user-dash-title').innerText = "Business Account Dashboard";
-            document.getElementById('user-dash-subtitle').innerText = `Welcome, ${currentUser.name} (${currentUser.email})`;
-            document.getElementById('user-dash-whatsapp').innerText = currentUser.whatsapp;
+            document.getElementById('user-dash-subtitle').innerText = `Welcome, ${window.currentUser.name} (${window.currentUser.email})`;
+            document.getElementById('user-dash-whatsapp').innerText = window.currentUser.whatsapp;
 
-            const userProps = properties.filter(p => p.ownerEmail === currentUser.email);
+            const userProps = window.properties.filter(p => p.ownerEmail === window.currentUser.email);
             const tbody = document.getElementById('user-listings-tbody');
             tbody.innerHTML = "";
             
@@ -1366,70 +1533,16 @@
                         <td>${formatUGX(prop.price)}</td>
                         <td><span style="font-weight:bold; color:${currentStatus === 'Available' ? '#28a745' : '#dc3545'};">${currentStatus}</span></td>
                         <td>
-                            <button onclick="togglePropertyStatus(${prop.id})" style="background:${statusBtnColor}; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:600; margin-right:4px; font-size:0.8rem;">${statusBtnText}</button>
-                            <button onclick="deleteListing(${prop.id})" style="background:#333; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:600; font-size:0.8rem;">Delete</button>
+                            <button onclick="togglePropertyStatus('${prop.id}', '${prop.firestoreId}')" style="background:${statusBtnColor}; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:600; margin-right:4px; font-size:0.8rem;">${statusBtnText}</button>
+                            <button onclick="deleteListing('${prop.id}', '${prop.firestoreId}')" style="background:#333; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:600; font-size:0.8rem;">Delete</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
                 });
             }
-        }
+        };
 
-        function togglePropertyStatus(propId) {
-            const prop = properties.find(p => p.id === propId);
-            if (prop) {
-                prop.status = (prop.status === 'Taken') ? 'Available' : 'Taken';
-                syncToLocalStorage();
-                updateUserDashboardDisplay();
-            }
-        }
-
-        function handleUserAddProperty(event) {
-            event.preventDefault();
-            if (!currentUser) return;
-
-            const name = document.getElementById('u-prop-name').value;
-            const type = document.getElementById('u-prop-type').value;
-            const district = document.getElementById('u-prop-district').value;
-            const price = document.getElementById('u-prop-price').value;
-            const whatsapp = document.getElementById('u-prop-whatsapp').value;
-            const desc = document.getElementById('u-prop-desc').value;
-            const imageFile = document.getElementById('u-prop-image').files[0];
-
-            if (imageFile) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const newProp = {
-                        id: Date.now(),
-                        name: name,
-                        type: type,
-                        district: district,
-                        price: Number(price),
-                        image: e.target.result,
-                        whatsapp: whatsapp,
-                        description: desc,
-                        ownerEmail: currentUser.email,
-                        status: "Available"
-                    };
-                    properties.unshift(newProp);
-                    syncToLocalStorage();
-                    alert("Property successfully uploaded!");
-                    document.getElementById('user-property-form').reset();
-                    updateUserDashboardDisplay();
-                };
-                reader.readAsDataURL(imageFile);
-            }
-        }
-
-        function deleteListing(propId) {
-            if (confirm("Are you sure you want to delete this listing?")) {
-                properties = properties.filter(p => p.id !== propId);
-                syncToLocalStorage();
-                updateUserDashboardDisplay();
-            }
-        }
-
-        function handleAdminLogin(event) {
+        window.handleAdminLogin = function(event) {
             event.preventDefault();
             const email = document.getElementById('admin-email').value;
             const password = document.getElementById('admin-password').value;
@@ -1440,47 +1553,10 @@
             } else {
                 alert("Permission Denied / Wrong Credentials");
             }
-        }
-
-        function handleAdminAddProperty(event) {
-            event.preventDefault();
-            const name = document.getElementById('a-prop-name').value;
-            const type = document.getElementById('a-prop-type').value;
-            const district = document.getElementById('a-prop-district').value;
-            const price = document.getElementById('a-prop-price').value;
-            const whatsapp = document.getElementById('a-prop-whatsapp').value;
-            const desc = document.getElementById('a-prop-desc').value;
-            const imageFile = document.getElementById('a-prop-image').files[0];
-
-            if (imageFile) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const newProp = {
-                        id: Date.now(),
-                        name: name,
-                        type: type,
-                        district: district,
-                        price: Number(price),
-                        image: e.target.result,
-                        whatsapp: whatsapp,
-                        description: desc,
-                        ownerEmail: "latratproperties@gmail.com",
-                        status: "Available"
-                    };
-                    properties.unshift(newProp);
-                    syncToLocalStorage();
-                    alert("Official Admin property listing added successfully!");
-                    document.getElementById('admin-property-form').reset();
-                    switchView('home');
-                };
-                reader.readAsDataURL(imageFile);
-            }
-        }
+        };
 
         window.onload = function() {
-            renderHomeProperties();
             updateNavLoginButtonState();
-            document.getElementById('counter-listings').innerText = properties.length + "+";
         };
     </script>
 </body>
